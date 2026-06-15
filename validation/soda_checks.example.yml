@@ -1,0 +1,28 @@
+# The same validation expressed in Soda (soda-core) syntax, for reference.
+# Run with: soda scan -d bigquery -c configuration.yml validation/soda_checks.example.yml
+# This demonstrates that checks.yml maps 1:1 onto an industry tool; the project
+# ships its own lightweight runner only to stay dependency-free.
+
+checks for customers:
+  - missing_count(customer_id) = 0
+  - duplicate_count(customer_id) = 0
+  - missing_percent(email) < 5%
+  - invalid_count(email) = 0:
+      valid format: email
+
+checks for products:
+  - duplicate_count(product_id) = 0
+  - min(unit_price) >= 0
+
+checks for orders:
+  - duplicate_count(order_id) = 0
+  - values in (customer_id) must exist in customers (customer_id)
+  - invalid_count(status) = 0:
+      valid values: [pending, paid, shipped, delivered, cancelled, refunded]
+
+checks for order_items:
+  - values in (product_id) must exist in products (product_id)
+  - min(quantity) >= 1
+  - min(unit_price) >= 0
+  - failed rows:
+      fail condition: ABS(quantity * unit_price - line_total) > 0.01

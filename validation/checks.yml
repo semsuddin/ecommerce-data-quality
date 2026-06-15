@@ -1,0 +1,130 @@
+# Declarative data-quality checks for the e-commerce pipeline.
+#
+# This file is the readable contract: each entry says what "valid" means for a
+# table/column. The runner (run_checks.py) turns every entry into a COUNT of
+# violating rows and fails the pipeline if any `error`-severity check is broken.
+# The same file runs unchanged against DuckDB (local) and BigQuery (GCP); only
+# the --engine flag changes.
+#
+# This is the same pattern Great Expectations and Soda use (a declarative
+# expectation/check set + a runner). It is kept dependency-light here so the
+# project is self-contained; validation/soda_checks.example.yml shows the
+# identical checks expressed in Soda syntax for reference.
+
+# Reference timestamp for freshness/future checks.
+# Use the fixed value for the bundled sample data; set to "now" in production
+# (the runner translates "now" to CURRENT_TIMESTAMP).
+reference_ts: "2025-06-01 00:00:00"
+
+checks:
+  # ---- customers --------------------------------------------------------
+  - id: customers_pk_not_null
+    table: customers
+    type: not_null
+    column: customer_id
+    severity: error
+
+  - id: customers_pk_unique
+    table: customers
+    type: unique
+    column: customer_id
+    severity: error
+
+  - id: customers_email_present
+    table: customers
+    type: not_null
+    column: email
+    severity: warn
+
+  - id: customers_email_format
+    table: customers
+    type: regex
+    column: email
+    pattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+    severity: warn
+
+  # ---- products ---------------------------------------------------------
+  - id: products_pk_unique
+    table: products
+    type: unique
+    column: product_id
+    severity: error
+
+  - id: products_price_nonneg
+    table: products
+    type: min_value
+    column: unit_price
+    min: 0
+    severity: error
+
+  # ---- orders -----------------------------------------------------------
+  - id: orders_pk_unique
+    table: orders
+    type: unique
+    column: order_id
+    severity: error
+
+  - id: orders_customer_fk
+    table: orders
+    type: relationship
+    column: customer_id
+    ref_table: customers
+    ref_column: customer_id
+    severity: error
+
+  - id: orders_status_accepted
+    table: orders
+    type: accepted_values
+    column: status
+    values: [pending, paid, shipped, delivered, cancelled, refunded]
+    severity: error
+
+  - id: orders_not_future
+    table: orders
+    type: not_in_future
+    column: order_date
+    severity: error
+
+  - id: orders_rowcount_min
+    table: orders
+    type: row_count_min
+    min: 1
+    severity: error
+
+  # ---- order_items ------------------------------------------------------
+  - id: items_order_fk
+    table: order_items
+    type: relationship
+    column: order_id
+    ref_table: orders
+    ref_column: order_id
+    severity: error
+
+  - id: items_product_fk
+    table: order_items
+    type: relationship
+    column: product_id
+    ref_table: products
+    ref_column: product_id
+    severity: error
+
+  - id: items_qty_positive
+    table: order_items
+    type: min_value
+    column: quantity
+    min: 1
+    severity: error
+
+  - id: items_price_nonneg
+    table: order_items
+    type: min_value
+    column: unit_price
+    min: 0
+    severity: error
+
+  # Cross-column reconciliation: the stored line_total must equal qty * price.
+  - id: items_line_total_reconciles
+    table: order_items
+    type: expression
+    expression: "ABS(quantity * unit_price - line_total) <= 0.01"
+    severity: error

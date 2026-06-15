@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw e-commerce tables loaded from CSV into BigQuery by the ingest task.
+    database: "{{ env_var('GCP_PROJECT', 'local') }}"
+    schema: ecommerce_raw
+    tables:
+      - name: customers
+      - name: products
+      - name: orders
+      - name: order_items

@@ -1,0 +1,50 @@
+# Hard-gate checks run against the CLEANED dbt marts (after dedup + validity
+# flags). These are expected to PASS on a healthy run; if they fail, the cleaning
+# logic regressed and the Airflow DAG blocks publish. This is the enforcing gate,
+# as opposed to checks.yml which measures raw source quality for observability.
+
+reference_ts: "now"
+
+checks:
+  - id: dim_customers_pk_unique
+    table: dim_customers
+    type: unique
+    column: customer_id
+    severity: error
+
+  - id: dim_customers_pk_not_null
+    table: dim_customers
+    type: not_null
+    column: customer_id
+    severity: error
+
+  - id: dim_products_pk_unique
+    table: dim_products
+    type: unique
+    column: product_id
+    severity: error
+
+  - id: fct_orders_pk_unique
+    table: fct_orders
+    type: unique
+    column: order_id
+    severity: error
+
+  - id: fct_orders_amount_not_null
+    table: fct_orders
+    type: not_null
+    column: order_amount
+    severity: error
+
+  - id: fct_orders_amount_nonneg
+    table: fct_orders
+    type: min_value
+    column: order_amount
+    min: 0
+    severity: error
+
+  - id: fct_orders_rowcount_min
+    table: fct_orders
+    type: row_count_min
+    min: 1
+    severity: error

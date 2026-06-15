@@ -1,0 +1,75 @@
+version: 2
+
+# Tests on the staging (cast-but-unrepaired) layer surface source defects.
+# Structural defects are set to severity: warn so `dbt build` completes and the
+# marts/dashboard populate; the standalone validation step (run_checks.py) is
+# the hard gate the Airflow DAG enforces. Flip these to error in production to
+# block a bad batch at the dbt layer instead.
+
+models:
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+          - unique
+      - name: email
+        tests:
+          - dbt_utils.not_null_proportion:
+              at_least: 0.95
+              config: { severity: warn }
+
+  - name: stg_products
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_orders
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique:
+              config: { severity: warn }   # duplicates exist in source
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+              config: { severity: warn }
+      - name: status
+        tests:
+          - accepted_values:
+              values: [pending, paid, shipped, delivered, cancelled, refunded]
+              config: { severity: warn }
+
+  - name: stg_order_items
+    columns:
+      - name: order_item_id
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        tests:
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+              config: { severity: warn }
+      - name: product_id
+        tests:
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+              config: { severity: warn }
+      - name: quantity
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              config: { severity: warn }
+      - name: unit_price
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config: { severity: warn }

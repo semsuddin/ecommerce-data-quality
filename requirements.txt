@@ -1,0 +1,11 @@
+# local run + validation
+pandas>=2.0
+duckdb>=0.10
+pyyaml>=6.0
+pyspark>=3.5
+
+# GCP path (install when running against BigQuery)
+google-cloud-bigquery>=3.0
+dbt-bigquery>=1.7
+# dbt-duckdb>=1.7   # optional: run dbt models locally with no cloud account
+# soda-core-bigquery>=3.3   # optional: run the Soda example

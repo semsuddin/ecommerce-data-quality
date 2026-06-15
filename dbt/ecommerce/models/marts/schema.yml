@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: One row per customer; primary key guaranteed unique.
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]            # error severity: passes after dedup
+
+  - name: dim_products
+    columns:
+      - name: product_id
+        tests: [not_null, unique]
+
+  - name: fct_orders
+    description: Order-grain fact with reconstructed totals and a validity flag.
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+              config: { severity: warn }     # orphan orders surface here
+      - name: order_amount
+        tests:
+          - not_null

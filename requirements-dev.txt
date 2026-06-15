@@ -1,0 +1,2 @@
+# Local development / CI extras
+pytest>=7.0

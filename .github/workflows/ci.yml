@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  data-quality:
+    name: Data-quality framework tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas duckdb pyyaml pytest
+
+      - name: Syntax check
+        run: python -m compileall generate_data.py validation spark airflow tests
+
+      - name: Run validation framework tests
+        # proves the framework detects exactly the seeded defects
+        run: pytest -q
+
+      - name: Validation report (observability)
+        run: |
+          python generate_data.py --rows 5000 --out data/raw
+          cd validation
+          python run_checks.py --engine duckdb --data-dir ../data/raw \
+            --no-fail --results-out /tmp/dq_results.csv | tee /tmp/report.txt
+          {
+            echo '### Data-quality validation report'
+            echo '```'
+            cat /tmp/report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  spark-smoke:
+    name: PySpark job smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pandas pyspark
+
+      - name: Generate data and run Spark aggregation
+        run: |
+          python generate_data.py --rows 5000 --out data/raw
+          cd spark
+          python daily_revenue_agg.py --source local --data-dir ../data/raw --out ../data/agg
